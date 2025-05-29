@@ -4,26 +4,18 @@ export async function POST(req: Request) {
   console.log('=== API Route Called ===');
   
   try {
-    // 요청 본문 파싱
     const body = await req.json();
-    console.log('Request body:', body);
-    
     const { prompt } = body;
+    
     if (!prompt) {
-      console.log('No prompt provided');
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    // 하드코딩된 API 키 사용 (테스트용)
     const apiKey = 'xai-blwB0UnbNdoYkJLqKsNCWogWKM17RXDJGcfzUYlHTI3qlXjKiN0h4Xge2yGHdIb0KsnsJXuG81pxT3lU';
-    console.log('Using API key:', apiKey ? 'Yes' : 'No');
-
-    // 작동하는 모델 우선 시도
-    const modelsToTry = ['grok-3', 'grok-3-beta', 'grok-beta', 'grok'];
+    
+    const modelsToTry = ['grok-3', 'grok-3-beta', 'grok-beta'];
     
     for (const model of modelsToTry) {
-      console.log(`\n=== Trying model: ${model} ===`);
-      
       const requestData = {
         model: model,
         messages: [
@@ -58,78 +50,42 @@ export async function POST(req: Request) {
 - 고퀄리티 창작물 수준의 완성도 유지`
           },
           {
-            role: "user",
+            role: "user", 
             content: prompt
           }
         ],
-        max_tokens: 8000, // 토큰 수 대폭 증가
-        temperature: 0.8, // 창의성 증가
+        max_tokens: 8000,
+        temperature: 0.8
       };
-      
-      console.log('Request data:', JSON.stringify(requestData, null, 2));
 
       try {
         const response = await fetch("https://api.x.ai/v1/chat/completions", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`,
+            "Authorization": `Bearer ${apiKey}`
           },
-          body: JSON.stringify(requestData),
+          body: JSON.stringify(requestData)
         });
 
-        console.log(`Response status for ${model}:`, response.status);
-        console.log(`Response ok for ${model}:`, response.ok);
-
-        const responseText = await response.text();
-        console.log(`Response text length for ${model}:`, responseText.length);
-
         if (response.ok) {
-          let responseData;
-          try {
-            responseData = JSON.parse(responseText);
-            console.log(`Parsed response for ${model}:`, JSON.stringify(responseData, null, 2));
-
-            const content = responseData.choices?.[0]?.message?.content;
-            if (content) {
-              console.log(`Success with ${model}! Generated content length:`, content.length);
-              console.log(`Generated content preview:`, content.substring(0, 200) + '...');
-              return NextResponse.json({ content, model: model });
-            }
-          } catch (parseError) {
-            console.error(`Parse error for ${model}:`, parseError);
-            continue;
+          const data = await response.json();
+          const content = data.choices?.[0]?.message?.content;
+          
+          if (content) {
+            return NextResponse.json({ content, model: model });
           }
-        } else {
-          console.log(`Failed with ${model}, trying next...`);
-          continue;
         }
       } catch (fetchError) {
-        console.error(`Fetch error for ${model}:`, fetchError);
+        console.error(`Error with ${model}:`, fetchError);
         continue;
       }
     }
-
-    // 모든 모델이 실패한 경우
-    console.error('All models failed');
-    return NextResponse.json(
-      { error: 'All model attempts failed', modelsAttempted: modelsToTry },
-      { status: 500 }
-    );
-
-  } catch (error) {
-    console.error('=== ERROR ===');
-    console.error('Error type:', typeof error);
-    console.error('Error message:', error instanceof Error ? error.message : String(error));
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
     
-    return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : String(error),
-        type: typeof error
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'All models failed' }, { status: 500 });
+    
+  } catch (error) {
+    console.error('API Error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
