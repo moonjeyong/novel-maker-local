@@ -13,3 +13,4 @@ const requestData = {
     }
   ]
 };
+export default {};
